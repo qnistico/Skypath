@@ -1,0 +1,17 @@
+{
+  "name": "skypath",
+  "version": "1.0.0",
+  "description": "Real-time 3D flight tracker globe visualization",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "globe.gl": "^2.27.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.2"
+  }
+}

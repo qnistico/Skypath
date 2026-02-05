@@ -1,0 +1,489 @@
+import Globe from 'globe.gl';
+import { getActiveTheme } from './config/themes.js';
+import { createArcData, createFlightPositionArc } from './layers/arcs.js';
+import { createPointData } from './layers/points.js';
+import { createLabelData, updateLabelsForZoom } from './layers/labels.js';
+
+// Get active theme
+const theme = getActiveTheme();
+
+// Globe configuration
+const GLOBE_CONFIG = {
+  // Initial camera position - centered on US
+  initialAltitude: 1,
+  initialLat: 38,
+  initialLng: -97,
+};
+
+// Arc styling (from theme) - subtle dashed lines
+const ARC_STYLES = {
+  color: () => theme.arcColor,
+  altitude: 0.08,
+  stroke: 0.15,
+  dashLength: 0.15,
+  dashGap: 0.1,
+  dashAnimateTime: 5000,
+};
+
+// Point (aircraft) styling (from theme)
+const POINT_STYLES = {
+  color: () => theme.pointColor,
+  altitude: 0.01,
+  radius: 0.15,
+};
+
+// Label styling (from theme)
+const LABEL_STYLES = {
+  color: () => theme.labelColor,
+  size: 0.8,
+  altitude: 0.01,
+};
+
+let currentFlights = [];
+let onFlightClickCallback = null;
+let onFlightHoverCallback = null;
+let onStateClickCallback = null;
+let onStateHoverCallback = null;
+let highlightedFlightId = null;
+let hoveredStateId = null;
+let selectedStateId = null;
+let globeInstance = null;
+let currentAirports = null;
+let baseArcs = [];
+
+// GeoJSON URLs for borders (for minimal/hologram themes)
+const COUNTRIES_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+const US_STATES_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_1_states_provinces.geojson';
+
+/**
+ * Initialize the Globe.gl instance
+ */
+export async function initGlobe(containerId, options = {}) {
+  const container = document.getElementById(containerId);
+
+  if (options.onFlightClick) {
+    onFlightClickCallback = options.onFlightClick;
+  }
+  if (options.onFlightHover) {
+    onFlightHoverCallback = options.onFlightHover;
+  }
+  if (options.onStateClick) {
+    onStateClickCallback = options.onStateClick;
+  }
+  if (options.onStateHover) {
+    onStateHoverCallback = options.onStateHover;
+  }
+
+  const globe = Globe()(container);
+
+  // Apply theme background FIRST (before globe color changes)
+  if (theme.background) {
+    if (theme.background.startsWith('#') || theme.background.startsWith('rgb')) {
+      globe.backgroundColor(theme.background);
+    } else {
+      globe.backgroundImageUrl(theme.background);
+    }
+  }
+
+  // Apply theme-based globe appearance
+  if (theme.globeImage) {
+    globe.globeImageUrl(theme.globeImage);
+  } else if (theme.globeColor) {
+    // Solid color globe (no texture)
+    globe.globeImageUrl(null);
+
+    // Access Three.js globe mesh to set color
+    setTimeout(() => {
+      const globeMesh = globe.scene().children.find(c => c.type === 'Mesh');
+      if (globeMesh && globeMesh.material) {
+        globeMesh.material.color.set(theme.globeColor);
+      }
+    }, 100);
+  }
+
+  if (theme.bumpImage) {
+    globe.bumpImageUrl(theme.bumpImage);
+  }
+
+  // Atmosphere
+  globe
+    .showAtmosphere(theme.showAtmosphere)
+    .atmosphereColor(theme.atmosphereColor)
+    .atmosphereAltitude(theme.atmosphereAltitude);
+
+  // Store globe instance for highlighting
+  globeInstance = globe;
+
+  // Arc layer configuration with highlight support
+  globe
+    .arcColor(d => getArcColor(d))
+    .arcAltitude(ARC_STYLES.altitude)
+    .arcStroke(d => {
+      if (d.isPositionArc) return 0.4; // Same width as highlighted arc
+      if (highlightedFlightId && d.flight?.icao24 === highlightedFlightId) return 0.4;
+      return ARC_STYLES.stroke;
+    })
+    .arcDashLength(ARC_STYLES.dashLength)
+    .arcDashGap(ARC_STYLES.dashGap)
+    .arcDashAnimateTime(ARC_STYLES.dashAnimateTime)
+    .arcsTransitionDuration(0);
+
+  // Point layer configuration
+  globe
+    .pointColor(POINT_STYLES.color)
+    .pointAltitude(POINT_STYLES.altitude)
+    .pointRadius(POINT_STYLES.radius)
+    .pointsMerge(false)
+    .pointsTransitionDuration(1000)
+    .onPointClick(handlePointClick)
+    .onPointHover(handlePointHover);
+
+  // Label layer configuration
+  globe
+    .labelColor(d => d.type === 'state' ? 'rgba(120, 130, 150, 0.4)' : 'rgba(167, 139, 250, 0.6)')
+    .labelSize(d => d.size || 0.5)
+    .labelAltitude(LABEL_STYLES.altitude)
+    .labelDotRadius(d => d.dotRadius !== undefined ? d.dotRadius : 0.3)
+    .labelText('label')
+    .labelsTransitionDuration(0);
+
+  // Set zoom limits
+  const controls = globe.controls();
+  controls.minDistance = 113;  // Closest zoom (lower = closer)
+  controls.maxDistance = 500;  // Furthest zoom (higher = further away)
+
+  // Load country + US state polygons for themes that need borders
+  if (theme.polygonStroke || theme.polygonFill) {
+    try {
+      // Fetch countries and US states in parallel
+      const [countriesRes, statesRes] = await Promise.all([
+        fetch(COUNTRIES_GEOJSON_URL),
+        fetch(US_STATES_GEOJSON_URL)
+      ]);
+
+      const countries = await countriesRes.json();
+      const states = await statesRes.json();
+
+      // Filter out USA from countries (we'll show states instead)
+      const countriesFiltered = countries.features.filter(
+        f => f.properties.ISO_A2 !== 'US'
+      );
+
+      // Filter states to only US states
+      const usStates = states.features.filter(
+        f => f.properties.iso_a2 === 'US'
+      );
+
+      // Combine: other countries + US states
+      const allPolygons = [...countriesFiltered, ...usStates];
+
+      globe
+        .polygonsData(allPolygons)
+        .polygonCapColor(d => getPolygonCapColor(d))
+        .polygonSideColor(() => 'rgba(0,0,0,0)')
+        .polygonStrokeColor(d => getPolygonStrokeColor(d))
+        .polygonAltitude(0.005)
+        .onPolygonHover(handlePolygonHover)
+        .onPolygonClick(handlePolygonClick);
+    } catch (err) {
+      console.warn('Failed to load borders:', err);
+    }
+  }
+
+  // Set initial camera position
+  globe.pointOfView({
+    lat: GLOBE_CONFIG.initialLat,
+    lng: GLOBE_CONFIG.initialLng,
+    altitude: GLOBE_CONFIG.initialAltitude
+  }, 0);
+
+  // Handle zoom changes for dynamic labels and zoom tracker
+  globe.controls().addEventListener('change', () => {
+    const altitude = globe.pointOfView().altitude;
+    updateLabelsForZoom(globe, altitude, options.airports);
+
+    // Call zoom change callback if provided
+    if (options.onZoomChange) {
+      options.onZoomChange(altitude);
+    }
+  });
+
+  // Responsive sizing
+  window.addEventListener('resize', () => {
+    globe.width(container.clientWidth);
+    globe.height(container.clientHeight);
+  });
+
+  return globe;
+}
+
+/**
+ * Update flight data on the globe
+ */
+export function updateFlights(globe, flights, airports) {
+  currentFlights = flights;
+  currentAirports = airports;
+
+  // Create point data for aircraft positions
+  const pointData = createPointData(flights);
+  globe.pointsData(pointData);
+
+  // Create arc data for flight paths (sample for performance)
+  const arcData = createArcData(flights, airports);
+  baseArcs = arcData; // Store base arcs for highlighting
+
+  // If a flight is highlighted, preserve the position arc after refresh
+  if (highlightedFlightId && currentAirports) {
+    const highlightedFlight = currentFlights.find(f => f.icao24 === highlightedFlightId);
+    if (highlightedFlight) {
+      const positionArc = createFlightPositionArc(highlightedFlight, currentAirports);
+      if (positionArc) {
+        globe.arcsData([...arcData, positionArc]);
+      } else {
+        globe.arcsData(arcData);
+      }
+    } else {
+      // Flight no longer exists in data, clear highlight
+      highlightedFlightId = null;
+      globe.arcsData(arcData);
+    }
+  } else {
+    globe.arcsData(arcData);
+  }
+
+  // Update labels based on current zoom
+  const altitude = globe.pointOfView().altitude;
+  updateLabelsForZoom(globe, altitude, airports);
+}
+
+/**
+ * Get arc color based on highlight state
+ */
+function getArcColor(arc) {
+  const isHighlighted = highlightedFlightId && arc.flight?.icao24 === highlightedFlightId;
+
+  // Position arc (from flight's current position to destination) - most prominent
+  if (arc.isPositionArc) {
+    return ['rgba(250, 200, 100, 1)', 'rgba(250, 150, 50, 0.9)'];
+  }
+
+  if (isHighlighted) {
+    // Bright highlighted color for airport-to-airport arc
+    return ['rgba(167, 139, 250, 0.9)', 'rgba(122, 162, 247, 0.7)'];
+  }
+
+  // Default theme color (dimmed if something else is highlighted)
+  if (highlightedFlightId) {
+    return ['rgba(100, 140, 200, 0.1)', 'rgba(100, 140, 200, 0.02)'];
+  }
+
+  return theme.arcColor;
+}
+
+/**
+ * Highlight a specific flight's arc
+ */
+export function highlightFlight(flightId) {
+  highlightedFlightId = flightId;
+
+  // Trigger arc re-render with new colors
+  if (globeInstance) {
+    if (flightId && currentAirports) {
+      // Find the highlighted flight
+      const highlightedFlight = currentFlights.find(f => f.icao24 === flightId);
+
+      if (highlightedFlight) {
+        // Create position-to-destination arc for highlighted flight
+        const positionArc = createFlightPositionArc(highlightedFlight, currentAirports);
+
+        if (positionArc) {
+          // Add position arc to base arcs
+          globeInstance.arcsData([...baseArcs, positionArc]);
+        } else {
+          globeInstance.arcsData([...baseArcs]);
+        }
+      } else {
+        globeInstance.arcsData([...baseArcs]);
+      }
+    } else {
+      // No highlight - restore base arcs
+      globeInstance.arcsData([...baseArcs]);
+    }
+  }
+}
+
+/**
+ * Handle click on a flight point
+ */
+function handlePointClick(point) {
+  if (onFlightClickCallback && point) {
+    onFlightClickCallback(point.flight, 'click');
+  }
+}
+
+/**
+ * Handle hover on a flight point
+ */
+function handlePointHover(point) {
+  if (onFlightHoverCallback) {
+    onFlightHoverCallback(point ? point.flight : null, 'hover');
+  }
+}
+
+/**
+ * Get state abbreviation from polygon feature
+ */
+function getStateAbbr(feature) {
+  if (!feature || !feature.properties) return null;
+  // US states have postal code or iso_3166_2 like "US-CA"
+  return feature.properties.postal || feature.properties.iso_3166_2?.split('-')[1] || null;
+}
+
+/**
+ * Check if polygon is a US state
+ */
+function isUSState(feature) {
+  if (!feature || !feature.properties) return false;
+  return feature.properties.iso_a2 === 'US' || feature.properties.postal != null;
+}
+
+/**
+ * Get polygon fill color based on hover/selected state
+ */
+function getPolygonCapColor(feature) {
+  const stateAbbr = getStateAbbr(feature);
+  const isState = isUSState(feature);
+
+  // Selected state (from filter) - highest priority
+  if (isState && selectedStateId && stateAbbr === selectedStateId) {
+    return 'rgba(122, 162, 247, 0.2)';
+  }
+
+  // Hovered US state (only if no selection, or hovering different state)
+  if (isState && hoveredStateId && stateAbbr === hoveredStateId && !selectedStateId) {
+    return 'rgba(122, 162, 247, 0.12)';
+  }
+
+  // Dim other states when one is selected
+  if (isState && selectedStateId && stateAbbr !== selectedStateId) {
+    return 'rgba(20, 25, 40, 0.6)';
+  }
+
+  return theme.polygonFill || 'rgba(0,0,0,0)';
+}
+
+/**
+ * Get polygon stroke color based on hover/selected state
+ */
+function getPolygonStrokeColor(feature) {
+  const stateAbbr = getStateAbbr(feature);
+  const isState = isUSState(feature);
+
+  // Selected state (from filter) - highest priority
+  if (isState && selectedStateId && stateAbbr === selectedStateId) {
+    return 'rgba(122, 162, 247, 0.9)';
+  }
+
+  // Hovered US state
+  if (isState && hoveredStateId && stateAbbr === hoveredStateId && !selectedStateId) {
+    return 'rgba(122, 162, 247, 0.6)';
+  }
+
+  // Dim other states when one is selected
+  if (isState && selectedStateId && stateAbbr !== selectedStateId) {
+    return 'rgba(122, 162, 247, 0.1)';
+  }
+
+  return theme.polygonStroke || 'rgba(255,255,255,0.2)';
+}
+
+/**
+ * Handle hover on a polygon (state/country)
+ */
+function handlePolygonHover(polygon) {
+  if (!polygon) {
+    hoveredStateId = null;
+  } else if (isUSState(polygon)) {
+    hoveredStateId = getStateAbbr(polygon);
+  } else {
+    hoveredStateId = null;
+  }
+
+  const isHovering = hoveredStateId !== null;
+
+  // Change cursor to indicate clickable state
+  const container = document.getElementById('globe-container');
+  if (container) {
+    container.style.cursor = isHovering ? 'pointer' : 'grab';
+  }
+
+  // Trigger re-render of polygons
+  if (globeInstance) {
+    globeInstance
+      .polygonCapColor(d => getPolygonCapColor(d))
+      .polygonStrokeColor(d => getPolygonStrokeColor(d));
+  }
+
+  if (onStateHoverCallback) {
+    onStateHoverCallback(hoveredStateId);
+  }
+}
+
+/**
+ * Handle click on a polygon (state/country)
+ */
+function handlePolygonClick(polygon) {
+  if (!polygon) return;
+
+  if (isUSState(polygon)) {
+    const stateAbbr = getStateAbbr(polygon);
+    if (onStateClickCallback && stateAbbr) {
+      onStateClickCallback(stateAbbr);
+    }
+  }
+}
+
+/**
+ * Reset the globe view to initial position
+ */
+export function resetView(globe) {
+  globe.pointOfView({
+    lat: GLOBE_CONFIG.initialLat,
+    lng: GLOBE_CONFIG.initialLng,
+    altitude: GLOBE_CONFIG.initialAltitude
+  }, 1000);
+}
+
+/**
+ * Toggle arc visibility
+ */
+export function toggleArcs(globe, enabled) {
+  if (enabled) {
+    const arcData = createArcData(currentFlights);
+    globe.arcsData(arcData);
+  } else {
+    globe.arcsData([]);
+  }
+}
+
+/**
+ * Get the globe's current point of view
+ */
+export function getPointOfView(globe) {
+  return globe.pointOfView();
+}
+
+/**
+ * Update polygon styles based on active filters (highlight selected state)
+ */
+export function updatePolygonStyles(globe, filters) {
+  if (!globe) return;
+
+  // Update the selected state ID
+  selectedStateId = filters?.state || null;
+
+  // Re-render polygons with new state
+  globe
+    .polygonCapColor(d => getPolygonCapColor(d))
+    .polygonStrokeColor(d => getPolygonStrokeColor(d));
+}
