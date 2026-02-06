@@ -1,8 +1,10 @@
 import Globe from 'globe.gl';
+import * as THREE from 'three';
 import { getActiveTheme } from './config/themes.js';
 import { createArcData, createFlightPositionArc } from './layers/arcs.js';
 import { createPointData } from './layers/points.js';
 import { createLabelData, updateLabelsForZoom } from './layers/labels.js';
+import { getSunPosition } from './utils/solar.js';
 
 // Get active theme
 const theme = getActiveTheme();
@@ -189,6 +191,9 @@ export async function initGlobe(containerId, options = {}) {
       console.warn('Failed to load borders:', err);
     }
   }
+
+  // Add day/night terminator layer
+  addDayNightTerminator(globe);
 
   // Set initial camera position
   globe.pointOfView({
@@ -459,7 +464,8 @@ export function resetView(globe) {
  */
 export function toggleArcs(globe, enabled) {
   if (enabled) {
-    const arcData = createArcData(currentFlights);
+    const arcData = createArcData(currentFlights, currentAirports);
+    baseArcs = arcData; // Update base arcs cache
     globe.arcsData(arcData);
   } else {
     globe.arcsData([]);
@@ -486,4 +492,91 @@ export function updatePolygonStyles(globe, filters) {
   globe
     .polygonCapColor(d => getPolygonCapColor(d))
     .polygonStrokeColor(d => getPolygonStrokeColor(d));
+}
+
+/**
+ * Add day/night terminator overlay to the globe
+ * Creates a semi-transparent sphere that rotates with the sun position
+ */
+let terminatorMesh = null;
+
+function addDayNightTerminator(globe) {
+  // Wait for scene to be ready
+  setTimeout(() => {
+    const scene = globe.scene();
+    if (!scene) return;
+
+    // Create a slightly larger sphere for the night overlay
+    const GLOBE_RADIUS = 100; // Globe.gl default radius
+    const geometry = new THREE.SphereGeometry(GLOBE_RADIUS + 0.1, 64, 64);
+
+    // Custom shader material for day/night effect
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        sunPosition: { value: new THREE.Vector3(1, 0, 0) }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 sunPosition;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+
+        void main() {
+          vec3 sunDir = normalize(sunPosition);
+          float intensity = dot(vNormal, sunDir);
+
+          // Smooth transition at terminator (twilight zone)
+          float twilight = smoothstep(-0.1, 0.1, intensity);
+
+          // Night side: dark blue-ish overlay
+          vec3 nightColor = vec3(0.02, 0.02, 0.08);
+          float nightOpacity = 0.5 * (1.0 - twilight);
+
+          gl_FragColor = vec4(nightColor, nightOpacity);
+        }
+      `,
+      transparent: true,
+      side: THREE.FrontSide,
+      depthWrite: false
+    });
+
+    terminatorMesh = new THREE.Mesh(geometry, material);
+    scene.add(terminatorMesh);
+
+    // Update terminator position immediately
+    updateTerminatorPosition();
+
+    // Update terminator position every minute
+    setInterval(updateTerminatorPosition, 60000);
+  }, 500);
+}
+
+/**
+ * Update the terminator position based on current sun position
+ */
+function updateTerminatorPosition() {
+  if (!terminatorMesh) return;
+
+  const sunPos = getSunPosition();
+
+  // Convert lat/lng to 3D vector
+  const latRad = sunPos.lat * Math.PI / 180;
+  const lngRad = sunPos.lng * Math.PI / 180;
+
+  // Sun direction vector (pointing toward the sun)
+  const sunDir = new THREE.Vector3(
+    Math.cos(latRad) * Math.cos(lngRad),
+    Math.sin(latRad),
+    Math.cos(latRad) * Math.sin(lngRad)
+  );
+
+  terminatorMesh.material.uniforms.sunPosition.value.copy(sunDir);
 }

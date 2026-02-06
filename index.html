@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SkyPath - Real-time Flight Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -64,13 +65,68 @@
       </div>
     </div>
 
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-title">Filter by Altitude</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="filter-altitude-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="filter-content" id="altitude-filter-content">
+        <div class="altitude-slider-container">
+          <input type="range" id="filter-altitude-min" min="0" max="45000" value="0" step="1000" disabled>
+          <div class="altitude-labels">
+            <span id="altitude-min-label">0 ft</span>
+            <span id="altitude-max-label">45,000 ft</span>
+          </div>
+        </div>
+        <p class="filter-hint">Show flights above minimum altitude</p>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <div class="filter-header">
+        <span class="filter-title">Filter by Airline</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="filter-airline-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="filter-content" id="airline-filter-content">
+        <select id="filter-airline-select" disabled>
+          <option value="">Select an airline...</option>
+        </select>
+        <p class="filter-hint">Shows flights from selected airline</p>
+      </div>
+    </div>
+
     <button id="clear-filters" class="clear-btn">Clear All Filters</button>
   </div>
 
   <div id="ui-overlay">
     <header id="header">
       <div class="header-text">
-        <h1>SkyPath</h1>
+        <div class="logo-title">
+          <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36">
+            <defs>
+              <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#a78bfa"/>
+                <stop offset="100%" style="stop-color:#7aa2f7"/>
+              </linearGradient>
+            </defs>
+            <circle cx="32" cy="32" r="28" fill="none" stroke="url(#logo-gradient)" stroke-width="2" opacity="0.4"/>
+            <ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="url(#logo-gradient)" stroke-width="1" opacity="0.3"/>
+            <path d="M12 40 Q32 8 52 40" fill="none" stroke="url(#logo-gradient)" stroke-width="2.5" stroke-linecap="round"/>
+            <g transform="translate(44, 24) rotate(45)">
+              <path d="M0 -8 L3 -2 L8 0 L3 2 L0 8 L-3 2 L-8 0 L-3 -2 Z" fill="url(#logo-gradient)"/>
+            </g>
+            <circle cx="18" cy="36" r="2" fill="url(#logo-gradient)" opacity="0.4"/>
+            <circle cx="26" cy="26" r="2" fill="url(#logo-gradient)" opacity="0.6"/>
+            <circle cx="35" cy="22" r="2" fill="url(#logo-gradient)" opacity="0.8"/>
+          </svg>
+          <h1>SkyPath</h1>
+        </div>
         <p class="subtitle">Real-time Global Flight Tracker</p>
       </div>
       <div class="header-controls">
@@ -115,6 +171,7 @@
     <div id="flight-info" class="hidden">
       <button id="close-info">&times;</button>
       <h3 id="info-callsign">--</h3>
+      <p class="info-airline" id="info-airline"></p>
       <div class="info-route">
         <span id="info-origin">--</span>
         <span class="route-arrow">→</span>
@@ -138,8 +195,8 @@
           <span class="info-value" id="info-vertical">--</span>
         </div>
         <div class="info-item">
-          <span class="info-label">ICAO24</span>
-          <span class="info-value" id="info-icao">--</span>
+          <span class="info-label">Squawk</span>
+          <span class="info-value" id="info-squawk">--</span>
         </div>
         <div class="info-item">
           <span class="info-label">Coordinates</span>
@@ -165,19 +222,83 @@
   </div>
 
   <div id="controls">
-    <button id="btn-reset" title="Reset View">
+    <button id="btn-reset" title="Reset View (R)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
         <line x1="12" y1="8" x2="12" y2="12"/>
         <line x1="12" y1="12" x2="15" y2="15"/>
       </svg>
     </button>
-    <button id="btn-toggle-arcs" title="Toggle Flight Arcs">
+    <button id="btn-toggle-arcs" title="Toggle Flight Arcs (A)">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M22 2L11 13"/>
         <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
       </svg>
     </button>
+    <button id="btn-fullscreen" title="Fullscreen (F)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+      </svg>
+    </button>
+    <button id="btn-flights-list" title="Flight List (L)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="4" y1="6" x2="20" y2="6"/>
+        <line x1="4" y1="12" x2="20" y2="12"/>
+        <line x1="4" y1="18" x2="20" y2="18"/>
+      </svg>
+    </button>
+    <button id="btn-stats" title="Statistics (S)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Flight List Panel -->
+  <div id="flights-list-panel" class="hidden">
+    <div class="panel-header">
+      <h3>Flights</h3>
+      <button id="close-flights-list">&times;</button>
+    </div>
+    <div class="flights-list-controls">
+      <input type="text" id="flights-search" placeholder="Search callsign...">
+      <select id="flights-sort">
+        <option value="callsign">Callsign</option>
+        <option value="altitude">Altitude</option>
+        <option value="speed">Speed</option>
+        <option value="airline">Airline</option>
+      </select>
+    </div>
+    <div id="flights-list-content"></div>
+  </div>
+
+  <!-- Stats Panel -->
+  <div id="stats-dashboard" class="hidden">
+    <div class="panel-header">
+      <h3>Statistics</h3>
+      <button id="close-stats">&times;</button>
+    </div>
+    <div id="stats-content">
+      <div class="stat-section">
+        <h4>Top Airlines</h4>
+        <div id="top-airlines"></div>
+      </div>
+      <div class="stat-section">
+        <h4>Altitude Distribution</h4>
+        <div id="altitude-chart"></div>
+      </div>
+      <div class="stat-section">
+        <h4>Flights by Country</h4>
+        <div id="country-chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attribution -->
+  <div id="attribution">
+    Flight data by <a href="https://opensky-network.org" target="_blank" rel="noopener">OpenSky Network</a>
   </div>
 
   <div id="loading">

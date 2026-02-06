@@ -148,6 +148,37 @@ const REGIONS = [
   { name: 'Scandinavia', lat: 62, lng: 15, zoom: 1, type: 'region' },
 ];
 
+// Airlines for filter dropdown (sorted by name)
+const AIRLINES_LIST = [
+  { code: 'AAL', name: 'American Airlines' },
+  { code: 'ACA', name: 'Air Canada' },
+  { code: 'AFR', name: 'Air France' },
+  { code: 'ANA', name: 'All Nippon Airways' },
+  { code: 'ASA', name: 'Alaska Airlines' },
+  { code: 'BAW', name: 'British Airways' },
+  { code: 'CCA', name: 'Air China' },
+  { code: 'CPA', name: 'Cathay Pacific' },
+  { code: 'DAL', name: 'Delta Air Lines' },
+  { code: 'DLH', name: 'Lufthansa' },
+  { code: 'UAE', name: 'Emirates' },
+  { code: 'ETD', name: 'Etihad Airways' },
+  { code: 'EVA', name: 'EVA Air' },
+  { code: 'EZY', name: 'easyJet' },
+  { code: 'JAL', name: 'Japan Airlines' },
+  { code: 'JBU', name: 'JetBlue Airways' },
+  { code: 'KAL', name: 'Korean Air' },
+  { code: 'KLM', name: 'KLM Royal Dutch' },
+  { code: 'QFA', name: 'Qantas' },
+  { code: 'QTR', name: 'Qatar Airways' },
+  { code: 'RYR', name: 'Ryanair' },
+  { code: 'SIA', name: 'Singapore Airlines' },
+  { code: 'SWA', name: 'Southwest Airlines' },
+  { code: 'THY', name: 'Turkish Airlines' },
+  { code: 'UAL', name: 'United Airlines' },
+  { code: 'VIR', name: 'Virgin Atlantic' },
+  { code: 'WJA', name: 'WestJet' },
+].sort((a, b) => a.name.localeCompare(b.name));
+
 // US States data for the dropdown
 const US_STATES = [
   { abbr: 'AL', name: 'Alabama' },
@@ -260,7 +291,9 @@ const STATE_BOUNDS = {
 let activeFilters = {
   country: null,
   state: null,
-  airport: null
+  airport: null,
+  minAltitude: null,
+  airline: null
 };
 
 let onFilterChangeCallback = null;
@@ -302,6 +335,17 @@ export function initFilters(airports, onFilterChange, globe) {
     option.textContent = `${airport.city} (${airport.iata})`;
     airportSelect.appendChild(option);
   });
+
+  // Populate airline dropdown
+  const airlineSelect = document.getElementById('filter-airline-select');
+  if (airlineSelect) {
+    AIRLINES_LIST.forEach(airline => {
+      const option = document.createElement('option');
+      option.value = airline.code;
+      option.textContent = airline.name;
+      airlineSelect.appendChild(option);
+    });
+  }
 
   // Set up event listeners
   setupFilterListeners();
@@ -418,6 +462,64 @@ function setupFilterListeners() {
     notifyFilterChange();
   });
 
+  // Altitude filter
+  const altitudeToggle = document.getElementById('filter-altitude-toggle');
+  const altitudeSlider = document.getElementById('filter-altitude-min');
+  const altitudeContent = document.getElementById('altitude-filter-content');
+  const altitudeMinLabel = document.getElementById('altitude-min-label');
+
+  if (altitudeToggle && altitudeSlider) {
+    altitudeToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      altitudeSlider.disabled = !enabled;
+      altitudeContent.classList.toggle('enabled', enabled);
+
+      if (!enabled) {
+        altitudeSlider.value = 0;
+        altitudeMinLabel.textContent = '0 ft';
+        activeFilters.minAltitude = null;
+        notifyFilterChange();
+      } else {
+        activeFilters.minAltitude = parseInt(altitudeSlider.value) * 0.3048; // Convert ft to meters
+        notifyFilterChange();
+      }
+    });
+
+    altitudeSlider.addEventListener('input', (e) => {
+      const ft = parseInt(e.target.value);
+      altitudeMinLabel.textContent = `${ft.toLocaleString()} ft`;
+      activeFilters.minAltitude = ft * 0.3048; // Convert ft to meters
+      notifyFilterChange();
+    });
+  }
+
+  // Airline filter
+  const airlineToggle = document.getElementById('filter-airline-toggle');
+  const airlineSelect = document.getElementById('filter-airline-select');
+  const airlineContent = document.getElementById('airline-filter-content');
+
+  if (airlineToggle && airlineSelect) {
+    airlineToggle.addEventListener('change', (e) => {
+      const enabled = e.target.checked;
+      airlineSelect.disabled = !enabled;
+      airlineContent.classList.toggle('enabled', enabled);
+
+      if (!enabled) {
+        airlineSelect.value = '';
+        activeFilters.airline = null;
+        notifyFilterChange();
+      } else if (airlineSelect.value) {
+        activeFilters.airline = airlineSelect.value;
+        notifyFilterChange();
+      }
+    });
+
+    airlineSelect.addEventListener('change', (e) => {
+      activeFilters.airline = e.target.value || null;
+      notifyFilterChange();
+    });
+  }
+
   // Clear all filters
   clearFilters.addEventListener('click', () => {
     if (countryToggle) {
@@ -437,9 +539,35 @@ function setupFilterListeners() {
     airportSelect.value = '';
     airportContent.classList.remove('enabled');
 
+    // Clear altitude filter
+    const altitudeToggle = document.getElementById('filter-altitude-toggle');
+    const altitudeSlider = document.getElementById('filter-altitude-min');
+    const altitudeContent = document.getElementById('altitude-filter-content');
+    const altitudeMinLabel = document.getElementById('altitude-min-label');
+    if (altitudeToggle) {
+      altitudeToggle.checked = false;
+      altitudeSlider.disabled = true;
+      altitudeSlider.value = 0;
+      altitudeMinLabel.textContent = '0 ft';
+      altitudeContent.classList.remove('enabled');
+    }
+
+    // Clear airline filter
+    const airlineToggle = document.getElementById('filter-airline-toggle');
+    const airlineSelect = document.getElementById('filter-airline-select');
+    const airlineContent = document.getElementById('airline-filter-content');
+    if (airlineToggle) {
+      airlineToggle.checked = false;
+      airlineSelect.disabled = true;
+      airlineSelect.value = '';
+      airlineContent.classList.remove('enabled');
+    }
+
     activeFilters.country = null;
     activeFilters.state = null;
     activeFilters.airport = null;
+    activeFilters.minAltitude = null;
+    activeFilters.airline = null;
     notifyFilterChange();
   });
 }
@@ -462,6 +590,13 @@ function focusOnCountry(countryCode) {
  * Notify about filter changes
  */
 function notifyFilterChange() {
+  // Update filter button badge visibility
+  const btnFilters = document.getElementById('btn-filters');
+  if (btnFilters) {
+    const hasFilters = activeFilters.country || activeFilters.state || activeFilters.airport || activeFilters.minAltitude || activeFilters.airline;
+    btnFilters.classList.toggle('has-filters', hasFilters);
+  }
+
   if (onFilterChangeCallback) {
     onFilterChangeCallback(activeFilters);
   }
@@ -471,7 +606,7 @@ function notifyFilterChange() {
  * Filter flights based on active filters
  */
 export function filterFlights(flights, airports) {
-  if (!activeFilters.country && !activeFilters.state && !activeFilters.airport) {
+  if (!activeFilters.country && !activeFilters.state && !activeFilters.airport && !activeFilters.minAltitude && !activeFilters.airline) {
     return flights;
   }
 
@@ -506,6 +641,21 @@ export function filterFlights(flights, airports) {
         );
         // Within ~300km of airport
         if (distance > 3) return false;
+      }
+    }
+
+    // Altitude filter - check if flight is above minimum altitude
+    if (activeFilters.minAltitude !== null) {
+      if (!flight.altitude || flight.altitude < activeFilters.minAltitude) {
+        return false;
+      }
+    }
+
+    // Airline filter - check callsign prefix
+    if (activeFilters.airline) {
+      const callsignPrefix = flight.callsign?.substring(0, 3).toUpperCase();
+      if (callsignPrefix !== activeFilters.airline) {
+        return false;
       }
     }
 
@@ -547,7 +697,7 @@ export function getActiveFilters() {
  * Check if any filter is active
  */
 export function hasActiveFilters() {
-  return activeFilters.country !== null || activeFilters.state !== null || activeFilters.airport !== null;
+  return activeFilters.country !== null || activeFilters.state !== null || activeFilters.airport !== null || activeFilters.minAltitude !== null || activeFilters.airline !== null;
 }
 
 /**
