@@ -65,38 +65,6 @@ function handleZoomChange(altitude) {
     );
     zoomLevelEl.textContent = `${zoomPercent}%`;
   }
-
-  // Update URL state
-  updateURLState();
-}
-
-// URL State Management (debounced to avoid excessive history writes)
-let urlUpdateTimeout = null;
-function updateURLState() {
-  if (!globe) return;
-
-  // Debounce URL updates
-  if (urlUpdateTimeout) clearTimeout(urlUpdateTimeout);
-  urlUpdateTimeout = setTimeout(() => {
-    const pov = globe.pointOfView();
-    const params = new URLSearchParams();
-    params.set('lat', pov.lat.toFixed(2));
-    params.set('lng', pov.lng.toFixed(2));
-    params.set('alt', pov.altitude.toFixed(2));
-    window.history.replaceState({}, '', `?${params.toString()}`);
-  }, isMobile ? 500 : 100);  // Longer debounce on mobile
-}
-
-function loadURLState() {
-  const params = new URLSearchParams(window.location.search);
-  const lat = parseFloat(params.get('lat'));
-  const lng = parseFloat(params.get('lng'));
-  const alt = parseFloat(params.get('alt'));
-
-  if (!isNaN(lat) && !isNaN(lng) && !isNaN(alt)) {
-    return { lat, lng, altitude: alt };
-  }
-  return null;
 }
 
 // Initialize the application
@@ -105,9 +73,6 @@ async function init() {
     // Load static data
     airports = await loadAirports();
     console.log(`Loaded ${airports.size} airports`);
-
-    // Check for URL state
-    const urlState = loadURLState();
 
     // Initialize the globe
     globe = await initGlobe('globe-container', {
@@ -118,11 +83,6 @@ async function init() {
       airports,
       isMobile
     });
-
-    // Apply URL state if present
-    if (urlState) {
-      globe.pointOfView(urlState, 0);
-    }
 
     // Set initial zoom display
     handleZoomChange(globe.pointOfView().altitude);
@@ -579,7 +539,7 @@ function setupKeyboardShortcuts() {
 
 // Set up UI event listeners
 function setupEventListeners() {
-  // Track mouse position for hover tooltip and drag detection
+  // Track mouse/touch position for hover tooltip and drag detection
   document.addEventListener('mousedown', (e) => {
     mouseDownX = e.clientX;
     mouseDownY = e.clientY;
@@ -603,6 +563,27 @@ function setupEventListeners() {
       hoverTooltip.style.top = `${mouseY}px`;
     }
   });
+
+  // Touch event support for mobile drag detection
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      mouseDownX = e.touches[0].clientX;
+      mouseDownY = e.touches[0].clientY;
+      isDragging = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1) {
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      const dx = Math.abs(touchX - mouseDownX);
+      const dy = Math.abs(touchY - mouseDownY);
+      if (dx > 10 || dy > 10) {  // Slightly larger threshold for touch
+        isDragging = true;
+      }
+    }
+  }, { passive: true });
 
   btnReset.addEventListener('click', () => {
     resetView(globe);
