@@ -135,8 +135,8 @@ export async function initGlobe(containerId, options = {}) {
   globe
     .pointColor(POINT_STYLES.color)
     .pointAltitude(POINT_STYLES.altitude)
-    .pointRadius(isMobile ? 0.2 : POINT_STYLES.radius)  // Slightly larger on mobile for touch
-    .pointsMerge(isMobile)  // Merge points on mobile for performance
+    .pointRadius(isMobile ? 0.18 : POINT_STYLES.radius)
+    .pointsMerge(false)  // Keep points separate (merging can cause issues)
     .pointsTransitionDuration(isMobile ? 0 : 1000)  // No transitions on mobile
     .onPointClick(handlePointClick)
     .onPointHover(isMobile ? null : handlePointHover);  // No hover on mobile (touch)
@@ -157,30 +157,38 @@ export async function initGlobe(containerId, options = {}) {
   controls.minDistance = 113;  // Closest zoom (lower = closer)
   controls.maxDistance = 500;  // Furthest zoom (higher = further away)
 
-  // Load country + US state polygons for themes that need borders (skip on mobile for performance)
-  if ((theme.polygonStroke || theme.polygonFill) && !isMobile) {
+  // Load country + US state polygons for themes that need borders
+  if (theme.polygonStroke || theme.polygonFill) {
     try {
-      // Fetch countries and US states in parallel
-      const [countriesRes, statesRes] = await Promise.all([
-        fetch(COUNTRIES_GEOJSON_URL),
-        fetch(US_STATES_GEOJSON_URL)
-      ]);
+      let allPolygons;
 
-      const countries = await countriesRes.json();
-      const states = await statesRes.json();
+      if (isMobile) {
+        // Mobile: only load country borders (simpler, fewer polygons)
+        const countriesRes = await fetch(COUNTRIES_GEOJSON_URL);
+        const countries = await countriesRes.json();
+        allPolygons = countries.features;
+      } else {
+        // Desktop: load countries + US states
+        const [countriesRes, statesRes] = await Promise.all([
+          fetch(COUNTRIES_GEOJSON_URL),
+          fetch(US_STATES_GEOJSON_URL)
+        ]);
 
-      // Filter out USA from countries (we'll show states instead)
-      const countriesFiltered = countries.features.filter(
-        f => f.properties.ISO_A2 !== 'US'
-      );
+        const countries = await countriesRes.json();
+        const states = await statesRes.json();
 
-      // Filter states to only US states
-      const usStates = states.features.filter(
-        f => f.properties.iso_a2 === 'US'
-      );
+        // Filter out USA from countries (we'll show states instead)
+        const countriesFiltered = countries.features.filter(
+          f => f.properties.ISO_A2 !== 'US'
+        );
 
-      // Combine: other countries + US states
-      const allPolygons = [...countriesFiltered, ...usStates];
+        // Filter states to only US states
+        const usStates = states.features.filter(
+          f => f.properties.iso_a2 === 'US'
+        );
+
+        allPolygons = [...countriesFiltered, ...usStates];
+      }
 
       globe
         .polygonsData(allPolygons)
@@ -189,8 +197,8 @@ export async function initGlobe(containerId, options = {}) {
         .polygonStrokeColor(d => getPolygonStrokeColor(d))
         .polygonAltitude(0.004)
         .polygonsTransitionDuration(0)
-        .onPolygonHover(handlePolygonHover)
-        .onPolygonClick(handlePolygonClick);
+        .onPolygonHover(isMobile ? null : handlePolygonHover)
+        .onPolygonClick(isMobile ? null : handlePolygonClick);
     } catch (err) {
       console.warn('Failed to load borders:', err);
     }
@@ -209,13 +217,25 @@ export async function initGlobe(containerId, options = {}) {
   }, 0);
 
   // Handle zoom changes for dynamic labels and zoom tracker
+  // On mobile, debounce to reduce CPU load during rotation
+  let zoomTimeout = null;
   globe.controls().addEventListener('change', () => {
-    const altitude = globe.pointOfView().altitude;
-    updateLabelsForZoom(globe, altitude, options.airports);
+    if (isMobile) {
+      // Debounce on mobile - only update after rotation stops
+      if (zoomTimeout) clearTimeout(zoomTimeout);
+      zoomTimeout = setTimeout(() => {
+        const altitude = globe.pointOfView().altitude;
+        if (options.onZoomChange) {
+          options.onZoomChange(altitude);
+        }
+      }, 150);
+    } else {
+      const altitude = globe.pointOfView().altitude;
+      updateLabelsForZoom(globe, altitude, options.airports);
 
-    // Call zoom change callback if provided
-    if (options.onZoomChange) {
-      options.onZoomChange(altitude);
+      if (options.onZoomChange) {
+        options.onZoomChange(altitude);
+      }
     }
   });
 

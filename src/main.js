@@ -28,7 +28,7 @@ const isMobile = window.matchMedia('(max-width: 768px)').matches ||
 
 // Mobile performance settings
 const MOBILE_CONFIG = {
-  maxFlights: 150,           // Limit flights on mobile
+  maxFlights: 100,           // Limit flights on mobile (reduced for performance)
   refreshInterval: 30000,    // 30 seconds on mobile (vs 10s on desktop)
   arcsEnabled: false,        // Disable arcs by default on mobile
 };
@@ -58,25 +58,33 @@ let isDragging = false;
 
 // Handle zoom level changes - convert altitude to percentage
 function handleZoomChange(altitude) {
-  // Invert: low altitude = high zoom %, high altitude = low zoom %
-  const zoomPercent = Math.round(
-    Math.max(0, Math.min(100, ((MAX_ALTITUDE - altitude) / (MAX_ALTITUDE - MIN_ALTITUDE)) * 100))
-  );
-  zoomLevelEl.textContent = `${zoomPercent}%`;
+  // Skip zoom display update on mobile (element is hidden at 420px)
+  if (zoomLevelEl && !isMobile) {
+    const zoomPercent = Math.round(
+      Math.max(0, Math.min(100, ((MAX_ALTITUDE - altitude) / (MAX_ALTITUDE - MIN_ALTITUDE)) * 100))
+    );
+    zoomLevelEl.textContent = `${zoomPercent}%`;
+  }
 
   // Update URL state
   updateURLState();
 }
 
-// URL State Management
+// URL State Management (debounced to avoid excessive history writes)
+let urlUpdateTimeout = null;
 function updateURLState() {
   if (!globe) return;
-  const pov = globe.pointOfView();
-  const params = new URLSearchParams();
-  params.set('lat', pov.lat.toFixed(2));
-  params.set('lng', pov.lng.toFixed(2));
-  params.set('alt', pov.altitude.toFixed(2));
-  window.history.replaceState({}, '', `?${params.toString()}`);
+
+  // Debounce URL updates
+  if (urlUpdateTimeout) clearTimeout(urlUpdateTimeout);
+  urlUpdateTimeout = setTimeout(() => {
+    const pov = globe.pointOfView();
+    const params = new URLSearchParams();
+    params.set('lat', pov.lat.toFixed(2));
+    params.set('lng', pov.lng.toFixed(2));
+    params.set('alt', pov.altitude.toFixed(2));
+    window.history.replaceState({}, '', `?${params.toString()}`);
+  }, isMobile ? 500 : 100);  // Longer debounce on mobile
 }
 
 function loadURLState() {
@@ -160,12 +168,9 @@ async function refreshFlights() {
       // Apply filters
       let filteredFlights = filterFlights(allFlights, airports);
 
-      // Limit flights on mobile for performance
+      // Limit flights on mobile for performance (take first N, already geographically distributed)
       if (isMobile && filteredFlights.length > config.maxFlights) {
-        // Keep a random sample to maintain geographic distribution
-        filteredFlights = filteredFlights
-          .sort(() => Math.random() - 0.5)
-          .slice(0, config.maxFlights);
+        filteredFlights = filteredFlights.slice(0, config.maxFlights);
       }
 
       filteredFlightsCache = filteredFlights;
