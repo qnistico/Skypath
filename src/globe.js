@@ -148,16 +148,14 @@ export async function initGlobe(containerId, options = {}) {
     .onPointClick(handlePointClick)
     .onPointHover(isMobile ? null : handlePointHover);  // No hover on mobile (touch)
 
-  // Label layer configuration (skip on mobile for performance)
-  if (!isMobile) {
-    globe
-      .labelColor(d => d.type === 'state' ? 'rgba(120, 130, 150, 0.4)' : 'rgba(167, 139, 250, 0.6)')
-      .labelSize(d => d.size || 0.5)
-      .labelAltitude(LABEL_STYLES.altitude)
-      .labelDotRadius(d => d.dotRadius !== undefined ? d.dotRadius : 0.3)
-      .labelText('label')
-      .labelsTransitionDuration(0);
-  }
+  // Label layer configuration (airport codes with purple dots)
+  globe
+    .labelColor(d => d.type === 'state' ? 'rgba(120, 130, 150, 0.4)' : 'rgba(167, 139, 250, 0.6)')
+    .labelSize(d => d.size || 0.5)
+    .labelAltitude(LABEL_STYLES.altitude)
+    .labelDotRadius(d => d.dotRadius !== undefined ? d.dotRadius : 0.3)
+    .labelText('label')
+    .labelsTransitionDuration(isMobile ? 0 : 0);
 
   // Set zoom limits
   const controls = globe.controls();
@@ -258,6 +256,7 @@ export async function initGlobe(containerId, options = {}) {
       if (zoomTimeout) clearTimeout(zoomTimeout);
       zoomTimeout = setTimeout(() => {
         const altitude = globe.pointOfView().altitude;
+        updateLabelsForZoom(globe, altitude, options.airports);
         if (options.onZoomChange) {
           options.onZoomChange(altitude);
         }
