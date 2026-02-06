@@ -585,6 +585,57 @@ function setupEventListeners() {
     }
   }, { passive: true });
 
+  // Mobile: Custom proximity-based tap handler for flight selection
+  // This finds the nearest flight to the tap location rather than requiring precise hits
+  if (isMobile) {
+    document.addEventListener('touchend', (e) => {
+      // Ignore if was dragging or multi-touch
+      if (isDragging || e.changedTouches.length === 0) return;
+
+      const touch = e.changedTouches[0];
+      const tapX = touch.clientX;
+      const tapY = touch.clientY;
+
+      // Check movement from start - if moved too much, it's a drag not a tap
+      const dx = Math.abs(tapX - mouseDownX);
+      const dy = Math.abs(tapY - mouseDownY);
+      if (dx > 15 || dy > 15) return;
+
+      // Don't trigger if tapping UI elements
+      const target = document.elementFromPoint(tapX, tapY);
+      if (target && !target.closest('#globe-container')) return;
+
+      // Convert screen position to globe coordinates
+      const globeCoords = globe.toGlobeCoords(tapX, tapY);
+      if (!globeCoords) return;  // Tapped outside globe
+
+      const { lat: tapLat, lng: tapLng } = globeCoords;
+
+      // Find nearest flight within threshold (adjust based on zoom)
+      const altitude = globe.pointOfView().altitude;
+      const threshold = Math.max(2, altitude * 3);  // Larger threshold when zoomed out
+
+      let nearestFlight = null;
+      let nearestDist = Infinity;
+
+      filteredFlightsCache.forEach(flight => {
+        if (!flight.latitude || !flight.longitude) return;
+        const dLat = flight.latitude - tapLat;
+        const dLng = flight.longitude - tapLng;
+        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (dist < threshold && dist < nearestDist) {
+          nearestDist = dist;
+          nearestFlight = flight;
+        }
+      });
+
+      if (nearestFlight) {
+        e.preventDefault();
+        handleFlightClick(nearestFlight);
+      }
+    }, { passive: false });
+  }
+
   btnReset.addEventListener('click', () => {
     resetView(globe);
   });
