@@ -79,15 +79,6 @@ export async function initGlobe(containerId, options = {}) {
 
   const globe = Globe()(container);
 
-  // Apply theme background FIRST (before globe color changes)
-  if (theme.background) {
-    if (theme.background.startsWith('#') || theme.background.startsWith('rgb')) {
-      globe.backgroundColor(theme.background);
-    } else {
-      globe.backgroundImageUrl(theme.background);
-    }
-  }
-
   // Apply theme-based globe appearance
   if (theme.globeImage) {
     globe.globeImageUrl(theme.globeImage);
@@ -113,6 +104,22 @@ export async function initGlobe(containerId, options = {}) {
     .showAtmosphere(theme.showAtmosphere)
     .atmosphereColor(theme.atmosphereColor)
     .atmosphereAltitude(theme.atmosphereAltitude);
+
+  // Apply theme background AFTER globe is configured
+  // Use delayed application to prevent Globe.gl from resetting it on refresh
+  const applyBackground = () => {
+    if (theme.background) {
+      if (theme.background.startsWith('#') || theme.background.startsWith('rgb')) {
+        globe.backgroundColor(theme.background);
+      } else {
+        globe.backgroundImageUrl(theme.background);
+      }
+    }
+  };
+  applyBackground();
+  // Re-apply after a short delay to ensure it persists through Globe.gl's initialization
+  setTimeout(applyBackground, 100);
+  setTimeout(applyBackground, 500);
 
   // Store globe instance for highlighting
   globeInstance = globe;
@@ -225,12 +232,22 @@ export async function initGlobe(containerId, options = {}) {
     addDayNightTerminator(globe);
   }
 
-  // Set initial camera position
+  // Set initial camera position with smooth entry animation
+  // Start zoomed out and rotate in
   globe.pointOfView({
-    lat: GLOBE_CONFIG.initialLat,
-    lng: GLOBE_CONFIG.initialLng,
-    altitude: GLOBE_CONFIG.initialAltitude
+    lat: GLOBE_CONFIG.initialLat + 20,
+    lng: GLOBE_CONFIG.initialLng - 40,
+    altitude: GLOBE_CONFIG.initialAltitude + 1.5
   }, 0);
+
+  // Animate to final position
+  setTimeout(() => {
+    globe.pointOfView({
+      lat: GLOBE_CONFIG.initialLat,
+      lng: GLOBE_CONFIG.initialLng,
+      altitude: GLOBE_CONFIG.initialAltitude
+    }, 2500);  // 2.5 second smooth animation
+  }, 100);
 
   // Handle zoom changes for dynamic labels and zoom tracker
   // On mobile, debounce to reduce CPU load during rotation
