@@ -213,8 +213,8 @@ export async function initGlobe(containerId, options = {}) {
         .polygonStrokeColor(d => getPolygonStrokeColor(d))
         .polygonAltitude(0.004)
         .polygonsTransitionDuration(0)
-        .onPolygonHover(handlePolygonHover)
-        .onPolygonClick(handlePolygonClick);
+        .onPolygonHover(isMobile ? null : handlePolygonHover)
+        .onPolygonClick(isMobile ? null : handlePolygonClick);
     } catch (err) {
       console.warn('Failed to load borders:', err);
     }
