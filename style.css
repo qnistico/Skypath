@@ -994,6 +994,11 @@ body {
     max-width: none;
   }
 
+  /* Override the sidebar-hidden selector for mobile */
+  #filters-sidebar.hidden ~ #ui-overlay #flight-info {
+    left: 16px;
+  }
+
   #filters-sidebar {
     width: 100%;
   }
@@ -1097,6 +1102,11 @@ body {
     left: 12px;
     right: 12px;
     padding: 14px;
+  }
+
+  /* Override the sidebar-hidden selector for small phones */
+  #filters-sidebar.hidden ~ #ui-overlay #flight-info {
+    left: 12px;
   }
 
   #flight-info h2 {

@@ -163,10 +163,26 @@ export async function initGlobe(containerId, options = {}) {
       let allPolygons;
 
       if (isMobile) {
-        // Mobile: only load country borders (simpler, fewer polygons)
-        const countriesRes = await fetch(COUNTRIES_GEOJSON_URL);
+        // Mobile: load both countries and US states (same as desktop)
+        const [countriesRes, statesRes] = await Promise.all([
+          fetch(COUNTRIES_GEOJSON_URL),
+          fetch(US_STATES_GEOJSON_URL)
+        ]);
+
         const countries = await countriesRes.json();
-        allPolygons = countries.features;
+        const states = await statesRes.json();
+
+        // Filter out USA from countries (we'll show states instead)
+        const countriesFiltered = countries.features.filter(
+          f => f.properties.ISO_A2 !== 'US'
+        );
+
+        // Filter states to only US states
+        const usStates = states.features.filter(
+          f => f.properties.iso_a2 === 'US'
+        );
+
+        allPolygons = [...countriesFiltered, ...usStates];
       } else {
         // Desktop: load countries + US states
         const [countriesRes, statesRes] = await Promise.all([
