@@ -30,7 +30,7 @@ const ARC_STYLES = {
 // Point (aircraft) styling (from theme)
 const POINT_STYLES = {
   color: () => theme.pointColor,
-  altitude: 0.01,
+  altitude: 0.015,  // Higher than polygons (0.004) to prevent z-fighting
   radius: 0.15,
 };
 
@@ -184,7 +184,8 @@ export async function initGlobe(containerId, options = {}) {
         .polygonCapColor(d => getPolygonCapColor(d))
         .polygonSideColor(() => 'rgba(0,0,0,0)')
         .polygonStrokeColor(d => getPolygonStrokeColor(d))
-        .polygonAltitude(0.005)
+        .polygonAltitude(0.004)
+        .polygonsTransitionDuration(0)
         .onPolygonHover(handlePolygonHover)
         .onPolygonClick(handlePolygonClick);
     } catch (err) {
