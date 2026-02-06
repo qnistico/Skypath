@@ -135,7 +135,7 @@ export async function initGlobe(containerId, options = {}) {
   globe
     .pointColor(POINT_STYLES.color)
     .pointAltitude(POINT_STYLES.altitude)
-    .pointRadius(isMobile ? 0.18 : POINT_STYLES.radius)
+    .pointRadius(isMobile ? 0.35 : POINT_STYLES.radius)  // Larger touch targets on mobile
     .pointsMerge(false)  // Keep points separate (merging can cause issues)
     .pointsTransitionDuration(isMobile ? 0 : 1000)  // No transitions on mobile
     .onPointClick(handlePointClick)
@@ -197,8 +197,8 @@ export async function initGlobe(containerId, options = {}) {
         .polygonStrokeColor(d => getPolygonStrokeColor(d))
         .polygonAltitude(0.004)
         .polygonsTransitionDuration(0)
-        .onPolygonHover(isMobile ? null : handlePolygonHover)
-        .onPolygonClick(isMobile ? null : handlePolygonClick);
+        .onPolygonHover(handlePolygonHover)
+        .onPolygonClick(handlePolygonClick);
     } catch (err) {
       console.warn('Failed to load borders:', err);
     }

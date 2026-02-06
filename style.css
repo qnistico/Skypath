@@ -75,11 +75,12 @@ body {
   left: 14px;
   color: var(--text-secondary);
   pointer-events: none;
+  z-index: 1;
 }
 
 #location-search {
-  width: 220px;
-  padding: 12px 12px 12px 20px;
+  width: 240px;
+  padding: 12px 20px 12px 44px;
   background: rgba(15, 15, 25, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -1066,7 +1067,7 @@ body {
   }
 
   #location-search {
-    padding: 10px 10px 10px 16px;
+    padding: 10px 10px 10px 38px;
     font-size: 0.85rem;
   }
 
