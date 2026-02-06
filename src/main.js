@@ -22,13 +22,32 @@ const hoverTooltip = document.getElementById('flight-hover-tooltip');
 const MIN_ALTITUDE = 0.3;   // Closest zoom (100%)
 const MAX_ALTITUDE = 3.5;   // Furthest zoom (0%)
 
+// Mobile detection
+const isMobile = window.matchMedia('(max-width: 768px)').matches ||
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// Mobile performance settings
+const MOBILE_CONFIG = {
+  maxFlights: 150,           // Limit flights on mobile
+  refreshInterval: 30000,    // 30 seconds on mobile (vs 10s on desktop)
+  arcsEnabled: false,        // Disable arcs by default on mobile
+};
+
+const DESKTOP_CONFIG = {
+  maxFlights: Infinity,
+  refreshInterval: 10000,
+  arcsEnabled: true,
+};
+
+const config = isMobile ? MOBILE_CONFIG : DESKTOP_CONFIG;
+
 // App state
 let globe = null;
 let airports = new Map();
 let allFlights = []; // Store all flights before filtering
 let filteredFlightsCache = []; // Cache for flight list
 let updateInterval = null;
-let arcsEnabled = true;
+let arcsEnabled = config.arcsEnabled;
 let flightPinned = false;
 let justClickedFlight = false; // Flag to prevent immediate unpin after clicking a flight
 let mouseX = 0;
@@ -88,7 +107,8 @@ async function init() {
       onFlightHover: handleFlightHover,
       onZoomChange: handleZoomChange,
       onStateClick: handleStateClick,
-      airports
+      airports,
+      isMobile
     });
 
     // Apply URL state if present
@@ -111,8 +131,13 @@ async function init() {
     // Hide loading screen
     loadingEl.classList.add('hidden');
 
-    // Set up auto-refresh (every 10 seconds)
-    updateInterval = setInterval(refreshFlights, 10000);
+    // Set up auto-refresh (mobile: 30s, desktop: 10s)
+    updateInterval = setInterval(refreshFlights, config.refreshInterval);
+
+    // Log mobile mode
+    if (isMobile) {
+      console.log('Mobile mode: reduced flights, slower refresh, arcs disabled');
+    }
 
     // Set up UI event listeners
     setupEventListeners();
@@ -133,7 +158,16 @@ async function refreshFlights() {
 
     if (allFlights && allFlights.length > 0) {
       // Apply filters
-      const filteredFlights = filterFlights(allFlights, airports);
+      let filteredFlights = filterFlights(allFlights, airports);
+
+      // Limit flights on mobile for performance
+      if (isMobile && filteredFlights.length > config.maxFlights) {
+        // Keep a random sample to maintain geographic distribution
+        filteredFlights = filteredFlights
+          .sort(() => Math.random() - 0.5)
+          .slice(0, config.maxFlights);
+      }
+
       filteredFlightsCache = filteredFlights;
 
       updateFlights(globe, filteredFlights, airports);

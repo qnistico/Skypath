@@ -11,22 +11,22 @@
   <div id="globe-container"></div>
 
   <!-- Filters Sidebar -->
-  <div id="filters-sidebar" class="hidden">
+  <div id="filters-sidebar" class="hidden" role="dialog" aria-label="Flight filters">
     <div class="sidebar-header">
       <h2>Filters</h2>
-      <button id="close-filters">&times;</button>
+      <button id="close-filters" aria-label="Close filters">&times;</button>
     </div>
 
     <div class="filter-section">
       <div class="filter-header">
-        <span class="filter-title">Filter by Country</span>
+        <label class="filter-title" id="country-filter-label">Filter by Country</label>
         <label class="toggle-switch">
-          <input type="checkbox" id="filter-country-toggle">
+          <input type="checkbox" id="filter-country-toggle" aria-labelledby="country-filter-label">
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div class="filter-content" id="country-filter-content">
-        <select id="filter-country-select" disabled>
+        <select id="filter-country-select" disabled aria-label="Select country">
           <option value="">Select a country...</option>
         </select>
         <p class="filter-hint">Focus globe and show flights from country</p>
@@ -35,14 +35,14 @@
 
     <div class="filter-section">
       <div class="filter-header">
-        <span class="filter-title">Filter by US State</span>
+        <label class="filter-title" id="state-filter-label">Filter by US State</label>
         <label class="toggle-switch">
-          <input type="checkbox" id="filter-state-toggle">
+          <input type="checkbox" id="filter-state-toggle" aria-labelledby="state-filter-label">
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div class="filter-content" id="state-filter-content">
-        <select id="filter-state-select" disabled>
+        <select id="filter-state-select" disabled aria-label="Select US state">
           <option value="">Select a state...</option>
         </select>
         <p class="filter-hint">Shows flights over selected state</p>
@@ -51,14 +51,14 @@
 
     <div class="filter-section">
       <div class="filter-header">
-        <span class="filter-title">Filter by Airport</span>
+        <label class="filter-title" id="airport-filter-label">Filter by Airport</label>
         <label class="toggle-switch">
-          <input type="checkbox" id="filter-airport-toggle">
+          <input type="checkbox" id="filter-airport-toggle" aria-labelledby="airport-filter-label">
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div class="filter-content" id="airport-filter-content">
-        <select id="filter-airport-select" disabled>
+        <select id="filter-airport-select" disabled aria-label="Select airport">
           <option value="">Select an airport...</option>
         </select>
         <p class="filter-hint">Shows flights near selected airport</p>
@@ -67,15 +67,15 @@
 
     <div class="filter-section">
       <div class="filter-header">
-        <span class="filter-title">Filter by Altitude</span>
+        <label class="filter-title" id="altitude-filter-label">Filter by Altitude</label>
         <label class="toggle-switch">
-          <input type="checkbox" id="filter-altitude-toggle">
+          <input type="checkbox" id="filter-altitude-toggle" aria-labelledby="altitude-filter-label">
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div class="filter-content" id="altitude-filter-content">
         <div class="altitude-slider-container">
-          <input type="range" id="filter-altitude-min" min="0" max="45000" value="0" step="1000" disabled>
+          <input type="range" id="filter-altitude-min" min="0" max="45000" value="0" step="1000" disabled aria-label="Minimum altitude in feet">
           <div class="altitude-labels">
             <span id="altitude-min-label">0 ft</span>
             <span id="altitude-max-label">45,000 ft</span>
@@ -87,14 +87,14 @@
 
     <div class="filter-section">
       <div class="filter-header">
-        <span class="filter-title">Filter by Airline</span>
+        <label class="filter-title" id="airline-filter-label">Filter by Airline</label>
         <label class="toggle-switch">
-          <input type="checkbox" id="filter-airline-toggle">
+          <input type="checkbox" id="filter-airline-toggle" aria-labelledby="airline-filter-label">
           <span class="toggle-slider"></span>
         </label>
       </div>
       <div class="filter-content" id="airline-filter-content">
-        <select id="filter-airline-select" disabled>
+        <select id="filter-airline-select" disabled aria-label="Select airline">
           <option value="">Select an airline...</option>
         </select>
         <p class="filter-hint">Shows flights from selected airline</p>
@@ -108,7 +108,7 @@
     <header id="header">
       <div class="header-text">
         <div class="logo-title">
-          <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36">
+          <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true">
             <defs>
               <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" style="stop-color:#a78bfa"/>
@@ -131,15 +131,15 @@
       </div>
       <div class="header-controls">
         <div id="search-container">
-          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/>
             <path d="M21 21l-4.35-4.35"/>
           </svg>
-          <input type="text" id="location-search" placeholder="Search country or region..." autocomplete="off">
-          <div id="search-results" class="hidden"></div>
+          <input type="text" id="location-search" placeholder="Search country or region..." autocomplete="off" aria-label="Search country or region">
+          <div id="search-results" class="hidden" role="listbox"></div>
         </div>
-        <button id="btn-filters" title="Filters">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#filter-gradient)" stroke-width="2">
+        <button id="btn-filters" title="Filters" aria-label="Open filters">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#filter-gradient)" stroke-width="2" aria-hidden="true">
             <defs>
               <linearGradient id="filter-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" style="stop-color:#a78bfa"/>
@@ -153,7 +153,7 @@
       </div>
     </header>
 
-    <div id="stats-panel">
+    <div id="stats-panel" aria-label="Flight statistics">
       <div class="stat">
         <span class="stat-value" id="flight-count">--</span>
         <span class="stat-label">Active Flights</span>
@@ -168,13 +168,13 @@
       </div>
     </div>
 
-    <div id="flight-info" class="hidden">
-      <button id="close-info">&times;</button>
-      <h3 id="info-callsign">--</h3>
+    <article id="flight-info" class="hidden" aria-label="Flight details">
+      <button id="close-info" aria-label="Close flight info">&times;</button>
+      <h2 id="info-callsign">--</h2>
       <p class="info-airline" id="info-airline"></p>
       <div class="info-route">
         <span id="info-origin">--</span>
-        <span class="route-arrow">→</span>
+        <span class="route-arrow" aria-hidden="true">→</span>
         <span id="info-destination">--</span>
       </div>
       <div class="info-grid">
@@ -203,52 +203,52 @@
           <span class="info-value" id="info-coords">--</span>
         </div>
       </div>
-    </div>
+    </article>
 
     <!-- Hover tooltip (follows cursor) -->
-    <div id="flight-hover-tooltip" class="hidden">
+    <div id="flight-hover-tooltip" class="hidden" role="tooltip">
       <div class="tooltip-callsign" id="tooltip-callsign">--</div>
       <div class="tooltip-route">
         <span id="tooltip-origin">--</span>
-        <span class="tooltip-arrow">→</span>
+        <span class="tooltip-arrow" aria-hidden="true">→</span>
         <span id="tooltip-destination">--</span>
       </div>
       <div class="tooltip-details">
         <span id="tooltip-altitude">--</span>
-        <span class="tooltip-separator">•</span>
+        <span class="tooltip-separator" aria-hidden="true">•</span>
         <span id="tooltip-speed">--</span>
       </div>
     </div>
   </div>
 
-  <div id="controls">
-    <button id="btn-reset" title="Reset View (R)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+  <div id="controls" role="toolbar" aria-label="Map controls">
+    <button id="btn-reset" title="Reset View (R)" aria-label="Reset view">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <circle cx="12" cy="12" r="10"/>
         <line x1="12" y1="8" x2="12" y2="12"/>
         <line x1="12" y1="12" x2="15" y2="15"/>
       </svg>
     </button>
-    <button id="btn-toggle-arcs" title="Toggle Flight Arcs (A)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button id="btn-toggle-arcs" title="Toggle Flight Arcs (A)" aria-label="Toggle flight arcs">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M22 2L11 13"/>
         <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
       </svg>
     </button>
-    <button id="btn-fullscreen" title="Fullscreen (F)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button id="btn-fullscreen" title="Fullscreen (F)" aria-label="Toggle fullscreen">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
       </svg>
     </button>
-    <button id="btn-flights-list" title="Flight List (L)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+    <button id="btn-flights-list" title="Flight List (L)" aria-label="Show flight list">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
         <line x1="4" y1="6" x2="20" y2="6"/>
         <line x1="4" y1="12" x2="20" y2="12"/>
         <line x1="4" y1="18" x2="20" y2="18"/>
       </svg>
     </button>
-    <button id="btn-stats" title="Statistics (S)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button id="btn-stats" title="Statistics (S)" aria-label="Show statistics">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <line x1="18" y1="20" x2="18" y2="10"/>
         <line x1="12" y1="20" x2="12" y2="4"/>
         <line x1="6" y1="20" x2="6" y2="14"/>
@@ -257,40 +257,40 @@
   </div>
 
   <!-- Flight List Panel -->
-  <div id="flights-list-panel" class="hidden">
+  <div id="flights-list-panel" class="hidden" role="dialog" aria-label="Flight list">
     <div class="panel-header">
-      <h3>Flights</h3>
-      <button id="close-flights-list">&times;</button>
+      <h2>Flights</h2>
+      <button id="close-flights-list" aria-label="Close flight list">&times;</button>
     </div>
     <div class="flights-list-controls">
-      <input type="text" id="flights-search" placeholder="Search callsign...">
-      <select id="flights-sort">
+      <input type="text" id="flights-search" placeholder="Search callsign..." aria-label="Search flights by callsign">
+      <select id="flights-sort" aria-label="Sort flights by">
         <option value="callsign">Callsign</option>
         <option value="altitude">Altitude</option>
         <option value="speed">Speed</option>
         <option value="airline">Airline</option>
       </select>
     </div>
-    <div id="flights-list-content"></div>
+    <div id="flights-list-content" role="list"></div>
   </div>
 
   <!-- Stats Panel -->
-  <div id="stats-dashboard" class="hidden">
+  <div id="stats-dashboard" class="hidden" role="dialog" aria-label="Statistics dashboard">
     <div class="panel-header">
-      <h3>Statistics</h3>
-      <button id="close-stats">&times;</button>
+      <h2>Statistics</h2>
+      <button id="close-stats" aria-label="Close statistics">&times;</button>
     </div>
     <div id="stats-content">
       <div class="stat-section">
-        <h4>Top Airlines</h4>
+        <h3>Top Airlines</h3>
         <div id="top-airlines"></div>
       </div>
       <div class="stat-section">
-        <h4>Altitude Distribution</h4>
+        <h3>Altitude Distribution</h3>
         <div id="altitude-chart"></div>
       </div>
       <div class="stat-section">
-        <h4>Flights by Country</h4>
+        <h3>Flights by Country</h3>
         <div id="country-chart"></div>
       </div>
     </div>
@@ -301,8 +301,8 @@
     Flight data by <a href="https://opensky-network.org" target="_blank" rel="noopener">OpenSky Network</a>
   </div>
 
-  <div id="loading">
-    <div class="spinner"></div>
+  <div id="loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
     <p>Loading flight data...</p>
   </div>
 

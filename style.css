@@ -468,7 +468,7 @@ body {
   pointer-events: none;
 }
 
-#flight-info h3 {
+#flight-info h2 {
   font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 4px;
@@ -764,7 +764,7 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.panel-header h3 {
+.panel-header h2 {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -895,7 +895,7 @@ body {
   margin-bottom: 0;
 }
 
-.stat-section h4 {
+.stat-section h3 {
   font-size: 0.8rem;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -938,7 +938,7 @@ body {
   text-align: right;
 }
 
-/* Mobile Responsiveness */
+/* Mobile Responsiveness - Tablet */
 @media (max-width: 768px) {
   #header {
     top: 16px;
@@ -1013,5 +1013,105 @@ body {
     bottom: 8px;
     left: 8px;
     font-size: 0.6rem;
+  }
+
+  /* Disable heavy animations on mobile for performance */
+  @keyframes filterGlow {
+    0%, 100% { box-shadow: 0 2px 12px rgba(122, 162, 247, 0.2); }
+  }
+
+  #btn-filters {
+    animation: none;
+    box-shadow: 0 2px 12px rgba(122, 162, 247, 0.2);
+  }
+
+  /* Disable backdrop blur on mobile for performance */
+  #filters-sidebar,
+  #flights-list-panel,
+  #stats-dashboard,
+  #flight-info,
+  #flight-hover-tooltip,
+  #location-search,
+  #btn-filters,
+  #controls button {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Mobile Responsiveness - Small phones */
+@media (max-width: 420px) {
+  /* Hide stats panel completely on small screens */
+  #stats-panel {
+    display: none;
+  }
+
+  #header {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+  }
+
+  .logo-title {
+    gap: 6px;
+  }
+
+  .logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header-text h1 {
+    font-size: 1.1rem;
+  }
+
+  #location-search {
+    padding: 10px 10px 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  #btn-filters {
+    padding: 10px 16px;
+    font-size: 0.85rem;
+  }
+
+  #controls {
+    bottom: 12px;
+    right: 12px;
+    gap: 6px;
+  }
+
+  #controls button {
+    width: 36px;
+    height: 36px;
+  }
+
+  #controls button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  #flight-info {
+    bottom: 60px;
+    left: 12px;
+    right: 12px;
+    padding: 14px;
+  }
+
+  #flight-info h2 {
+    font-size: 1.1rem;
+  }
+
+  .info-grid {
+    gap: 8px;
+  }
+
+  /* Disable hover tooltip on mobile - touch doesn't have hover */
+  #flight-hover-tooltip {
+    display: none !important;
+  }
+
+  #attribution {
+    display: none;
   }
 }

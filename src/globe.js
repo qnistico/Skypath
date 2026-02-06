@@ -62,6 +62,7 @@ const US_STATES_GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural
  */
 export async function initGlobe(containerId, options = {}) {
   const container = document.getElementById(containerId);
+  const isMobile = options.isMobile || false;
 
   if (options.onFlightClick) {
     onFlightClickCallback = options.onFlightClick;
@@ -130,32 +131,34 @@ export async function initGlobe(containerId, options = {}) {
     .arcDashAnimateTime(ARC_STYLES.dashAnimateTime)
     .arcsTransitionDuration(0);
 
-  // Point layer configuration
+  // Point layer configuration (optimized for mobile)
   globe
     .pointColor(POINT_STYLES.color)
     .pointAltitude(POINT_STYLES.altitude)
-    .pointRadius(POINT_STYLES.radius)
-    .pointsMerge(false)
-    .pointsTransitionDuration(1000)
+    .pointRadius(isMobile ? 0.2 : POINT_STYLES.radius)  // Slightly larger on mobile for touch
+    .pointsMerge(isMobile)  // Merge points on mobile for performance
+    .pointsTransitionDuration(isMobile ? 0 : 1000)  // No transitions on mobile
     .onPointClick(handlePointClick)
-    .onPointHover(handlePointHover);
+    .onPointHover(isMobile ? null : handlePointHover);  // No hover on mobile (touch)
 
-  // Label layer configuration
-  globe
-    .labelColor(d => d.type === 'state' ? 'rgba(120, 130, 150, 0.4)' : 'rgba(167, 139, 250, 0.6)')
-    .labelSize(d => d.size || 0.5)
-    .labelAltitude(LABEL_STYLES.altitude)
-    .labelDotRadius(d => d.dotRadius !== undefined ? d.dotRadius : 0.3)
-    .labelText('label')
-    .labelsTransitionDuration(0);
+  // Label layer configuration (skip on mobile for performance)
+  if (!isMobile) {
+    globe
+      .labelColor(d => d.type === 'state' ? 'rgba(120, 130, 150, 0.4)' : 'rgba(167, 139, 250, 0.6)')
+      .labelSize(d => d.size || 0.5)
+      .labelAltitude(LABEL_STYLES.altitude)
+      .labelDotRadius(d => d.dotRadius !== undefined ? d.dotRadius : 0.3)
+      .labelText('label')
+      .labelsTransitionDuration(0);
+  }
 
   // Set zoom limits
   const controls = globe.controls();
   controls.minDistance = 113;  // Closest zoom (lower = closer)
   controls.maxDistance = 500;  // Furthest zoom (higher = further away)
 
-  // Load country + US state polygons for themes that need borders
-  if (theme.polygonStroke || theme.polygonFill) {
+  // Load country + US state polygons for themes that need borders (skip on mobile for performance)
+  if ((theme.polygonStroke || theme.polygonFill) && !isMobile) {
     try {
       // Fetch countries and US states in parallel
       const [countriesRes, statesRes] = await Promise.all([
@@ -193,8 +196,10 @@ export async function initGlobe(containerId, options = {}) {
     }
   }
 
-  // Add day/night terminator layer
-  addDayNightTerminator(globe);
+  // Add day/night terminator layer (skip on mobile for performance)
+  if (!isMobile) {
+    addDayNightTerminator(globe);
+  }
 
   // Set initial camera position
   globe.pointOfView({
