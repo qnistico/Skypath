@@ -448,7 +448,7 @@ body {
 
 #flight-info {
   position: absolute;
-  bottom: 32px;
+  bottom: 58px;
   left: 320px;
   background: var(--bg-secondary);
   backdrop-filter: blur(12px);
@@ -721,7 +721,7 @@ body {
 #attribution {
   position: absolute;
   bottom: 12px;
-  left: 12px;
+  left: 32px;
   font-size: 0.7rem;
   color: var(--text-secondary);
   z-index: 50;
